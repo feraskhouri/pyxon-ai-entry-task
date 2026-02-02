@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Duplicate / backup copy of project
+pyxon-ai-entry-task/
+
+# Sample docs (not used)
+sample_docs/
+
+# Data and DB
+*.db
+*.sqlite
+chroma_db/
+data/
+temp_upload/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+
+#test files
+ArtificialIntelligenceWhatisit-RiturajMahato.pdf

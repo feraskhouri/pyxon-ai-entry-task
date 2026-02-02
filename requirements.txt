@@ -3,6 +3,7 @@ pymupdf>=1.23.0
 pytesseract>=0.3.10
 Pillow>=10.0.0
 python-docx>=1.0.0
+pypandoc>=1.11  # .doc fallback (requires pandoc binary: https://pandoc.org/ or apt install pandoc)
 
 # NLP and embeddings
 sentence-transformers>=2.2.0

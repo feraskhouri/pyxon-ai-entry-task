@@ -76,6 +76,10 @@ class VectorDB:
 
     def search(self, query: str, top_k: int = 5, doc_id: str | None = None) -> list[dict[str, Any]]:
         """Semantic search. Returns list of {text, metadata, distance}. Optionally filter by doc_id."""
+        if doc_id is not None:
+            doc_id = str(doc_id).strip() or None
+        if not doc_id and (self._collection.count() or 0) == 0:
+            return []
         query_embedding = self.model.encode([query]).tolist()
         where = {"doc_id": doc_id} if doc_id else None
         count = self._collection.count() or 1
@@ -154,13 +158,37 @@ class VectorDB:
         self._raptor_collection.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
         return ids
 
-    def search_raptor(self, query: str, top_k: int = 5, level: int | None = None) -> list[dict[str, Any]]:
-        """Search RAPTOR collection. Optionally filter by level."""
+    def search_raptor(
+        self,
+        query: str,
+        top_k: int = 5,
+        level: int | None = None,
+        doc_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search RAPTOR collection. Optionally filter by level and doc_id."""
         coll = self._raptor_collection
         count = coll.count() or 0
         if count == 0:
             return []
-        where = {"raptor_level": str(level)} if level is not None else None
+        where_parts = []
+        if level is not None:
+            where_parts.append({"raptor_level": str(level)})
+        if doc_id:
+            doc_id = str(doc_id).strip()
+            where_parts.append({"doc_id": doc_id})
+        where = None
+        if len(where_parts) == 1:
+            where = where_parts[0]
+        elif len(where_parts) == 2:
+            where = {"$and": where_parts}
+        if where:
+            try:
+                existing = coll.get(where=where)
+                count = len(existing["ids"]) if existing and existing["ids"] else 0
+            except Exception:
+                count = 0
+        if count == 0:
+            return []
         query_emb = self.model.encode([query]).tolist()
         results = coll.query(
             query_embeddings=query_emb,

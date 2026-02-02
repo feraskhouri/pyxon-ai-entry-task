@@ -36,18 +36,22 @@ def init_session():
 def main():
     st.set_page_config(page_title="Pyxon AI Document Parser", page_icon="📄", layout="wide")
     st.title("AI Document Parser")
-    st.caption("PDF, DOCX, TXT | GraphRAG | RAPTOR | Vector + SQL | Arabic + Harakat support")
+    st.caption("PDF, DOCX, DOC, TXT | GraphRAG | RAPTOR | Vector + SQL | Arabic + Harakat support")
 
     init_session()
     processor = st.session_state.processor
     rag = st.session_state.rag
+    selected_doc_id = None
 
     with st.sidebar:
-        api_key = st.secrets.get("OPENAI_API_KEY", "") if "OPENAI_API_KEY" in st.secrets else ""
+        try:
+            api_key = st.secrets.get("OPENAI_API_KEY", "") or ""
+        except Exception:
+            api_key = ""
         retrieval_mode = st.selectbox(
             "Retrieval mode",
             ["vector", "graph", "raptor", "hybrid"],
-            help="vector: semantic only | graph: entity expansion | raptor: hierarchical | hybrid: vector+graph",
+            help="vector: semantic similarity | graph: entities & relationships | raptor: overview/summary | hybrid: vector + graph fused",
         )
         docs = rag.list_documents()
         doc_options = ["All documents"] + [f"{d['filename']} ({d['id'][:8]}…)" for d in docs]
@@ -64,13 +68,15 @@ def main():
             index=min(default_idx, len(doc_options) - 1) if doc_options else 0,
             help="Choose which document to search. 'All documents' uses everything in this session.",
         )
-        selected_doc_id = None if selected_label == "All documents" else doc_id_map.get(selected_label)
+        selected_doc_id = None if selected_label == "All documents" else (doc_id_map.get(selected_label) or None)
+        if selected_doc_id is not None:
+            selected_doc_id = str(selected_doc_id).strip() or None
 
     tab1, tab3, tab4, tab5 = st.tabs(["Upload", "Search", "Generate Answer", "Documents"])
 
     with tab1:
         st.subheader("Upload Document")
-        uploaded = st.file_uploader("Choose PDF, DOCX, or TXT", type=["pdf", "docx", "txt"])
+        uploaded = st.file_uploader("Choose PDF, DOCX, DOC, or TXT", type=["pdf", "docx", "doc", "txt"])
         if uploaded:
             with st.spinner("Processing..."):
                 tmp = Path("temp_upload") / uploaded.name
@@ -94,12 +100,19 @@ def main():
 
     with tab3:
         st.subheader("Semantic Search")
+        st.caption(
+            "**vector**: semantic similarity · **graph**: entities & relationships · **raptor**: overview/summary · **hybrid**: vector + graph fused"
+        )
         query = st.text_input("Enter query (English or Arabic)", key="search_query")
         if query:
-            with st.spinner(f"Searching with {retrieval_mode} mode..."):
-                results = rag.retrieve(
-                    query, mode=retrieval_mode, top_k=5, doc_id=selected_doc_id
-                )
+            try:
+                with st.spinner(f"Searching with **{retrieval_mode}** mode..."):
+                    results = rag.retrieve(
+                        query, mode=retrieval_mode, top_k=8, doc_id=selected_doc_id
+                    )
+            except Exception as e:
+                st.error(f"Search error: {type(e).__name__}: {e}")
+                results = []
             if results:
                 for i, r in enumerate(results, 1):
                     dist = r.get("distance")
@@ -108,7 +121,7 @@ def main():
                         text = r.get("text", "")
                         st.markdown(f'<p dir="auto" lang="ar">{text}</p>' if _is_arabic(text) else text, unsafe_allow_html=True)
             else:
-                st.info("No results. Upload or crawl documents first.")
+                st.info("No results. Upload a document first, or try a different query or mode.")
 
     with tab4:
         st.subheader("Generate Answer (OpenAI)")

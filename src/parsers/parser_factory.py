@@ -5,9 +5,10 @@ from typing import Any
 
 from .pdf_parser import parse_pdf
 from .docx_parser import parse_docx
+from .doc_parser import parse_doc
 from .txt_parser import parse_txt
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
 
 
 def parse_document(file_path: str | Path) -> dict[str, Any]:
@@ -28,6 +29,8 @@ def parse_document(file_path: str | Path) -> dict[str, Any]:
         return parse_pdf(path)
     if suffix == ".docx":
         return parse_docx(path)
+    if suffix == ".doc":
+        return parse_doc(path)
     if suffix == ".txt":
         return parse_txt(path)
 

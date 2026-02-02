@@ -85,27 +85,34 @@ class RetrievalEngine:
     def _retrieve_graph(
         self, query: str, top_k: int, doc_id: str | None = None
     ) -> list[dict]:
-        """Vector search -> extract entities -> expand via graph -> fetch related chunks."""
-        initial = self.vector_db.search(query, top_k=top_k, doc_id=doc_id)
+        """Vector search -> extract entities from query + results -> expand via graph -> fuse."""
+        fetch_k = max(10, top_k * 2)
+        initial = self.vector_db.search(query, top_k=fetch_k, doc_id=doc_id)
         if not initial:
             return []
 
         all_text = " ".join(r.get("text", "") for r in initial)
         lang = detect_language(all_text)
-        entities = extract_entities(all_text, lang)
-        entities = [e for e in entities if len(e) > 2][:10]
+        entities_from_results = extract_entities(all_text, lang)
+        entities_from_results = [e for e in entities_from_results if len(e) > 2][:15]
+
+        query_lang = detect_language(query)
+        entities_from_query = extract_entities(query, query_lang)
+        entities_from_query = [e for e in entities_from_query if len(e) > 2][:10]
+
+        entities = list(dict.fromkeys(entities_from_query + entities_from_results))[:15]
 
         related = []
-        for e in entities[:5]:
+        for e in entities[:8]:
             related.extend(
-                t[0] for t in self.sql_db.get_related_entities(e, top_k=3, doc_id=doc_id)
+                t[0] for t in self.sql_db.get_related_entities(e, top_k=4, doc_id=doc_id)
             )
-        related = list(dict.fromkeys(related))[:10]
+        related = list(dict.fromkeys(related))[:15]
 
         expanded = []
-        for ent in related[:3]:
+        for ent in related[:5]:
             chunk_ids = self.sql_db.get_chunk_ids_for_entities(
-                [ent], limit=5, doc_id=doc_id
+                [ent], limit=6, doc_id=doc_id
             )
             if chunk_ids:
                 chunks = self.vector_db.get_by_ids(chunk_ids)
@@ -117,15 +124,15 @@ class RetrievalEngine:
     def _retrieve_raptor(
         self, query: str, top_k: int, doc_id: str | None = None
     ) -> list[dict]:
-        """Multi-level RAPTOR search. doc_id filters by document when supported."""
+        """Multi-level RAPTOR search (level 1 summaries + level 0 chunks). doc_id filters when set."""
+        fetch_k = max(8, top_k * 2)
         from_levels = []
         for level in [1, 0]:
-            r = self.vector_db.search_raptor(query, top_k=top_k, level=level)
+            r = self.vector_db.search_raptor(
+                query, top_k=fetch_k, level=level, doc_id=doc_id
+            )
             if r:
-                if doc_id:
-                    r = [x for x in r if x.get("metadata", {}).get("doc_id") == doc_id]
-                if r:
-                    from_levels.append(r)
+                from_levels.append(r)
         if not from_levels:
             return self.vector_db.search(query, top_k=top_k, doc_id=doc_id)
         merged = _reciprocal_rank_fusion(from_levels, k=60)
@@ -134,8 +141,9 @@ class RetrievalEngine:
     def _retrieve_hybrid(
         self, query: str, top_k: int, doc_id: str | None = None
     ) -> list[dict]:
-        """Vector + graph fusion."""
-        vector_res = self.vector_db.search(query, top_k=top_k, doc_id=doc_id)
-        graph_res = self._retrieve_graph(query, top_k, doc_id=doc_id)
+        """Vector + graph fusion with more candidates for better RRF."""
+        fetch_k = max(10, top_k * 2)
+        vector_res = self.vector_db.search(query, top_k=fetch_k, doc_id=doc_id)
+        graph_res = self._retrieve_graph(query, fetch_k, doc_id=doc_id)
         merged = _reciprocal_rank_fusion([vector_res, graph_res], k=60)
         return _deduplicate_results(merged)[:top_k]

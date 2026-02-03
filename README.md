@@ -172,6 +172,11 @@ answer = rag.answer("question?", use_llm=True, api_key="sk-...", mode="graph")
 - **Benchmark**: Uses keyword-based self-retrieval; real user queries may perform differently
 - **GraphRAG entities**: Frequency-based (≥2 occurrences); rare entities filtered out
 
+## Future Work
+
+- **OCR for PDF:** Improve or fix OCR handling for scanned PDFs (e.g. layout detection, language selection, quality tuning) so image-based PDFs are parsed reliably.
+- **Conversation memory:** Give the LLM access to previous queries and answers so it can connect follow-up questions to earlier context (multi-turn Q&A, e.g. “What about the second one?” referring to a prior answer).
+
 ## Deployment (Streamlit Cloud)
 
 To run your own instance:

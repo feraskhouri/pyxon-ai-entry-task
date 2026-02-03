@@ -51,8 +51,18 @@ def main():
         retrieval_mode = st.selectbox(
             "Retrieval mode",
             ["vector", "graph", "raptor", "hybrid"],
-            help="vector: semantic similarity | graph: entities & relationships | raptor: overview/summary | hybrid: vector + graph fused",
+            help="Choose how to retrieve: meaning (vector), relations (graph), overview (raptor), or combined (hybrid).",
         )
+        with st.expander("What each mode does"):
+            st.markdown("""
+            **Vector:** Retrieves the same relevant text even when you ask in different wording — it matches *meaning*, not just keywords.
+
+            **Graph:** Extracts entities and relationships (e.g. people, organizations, “X reports to Y”) and returns supporting quotes from the document as evidence.
+
+            **Raptor:** Builds a faithful hierarchical summary of the relevant section(s), preserving key named entities (people, organizations, places) instead of dropping them.
+
+            **Hybrid:** Combines vector + graph into one coherent answer: a direct response, quoted excerpts, and extracted relationships, with no contradictions between the answer, quotes, and relations.
+            """)
         docs = rag.list_documents()
         doc_options = ["All documents"] + [f"{d['filename']} ({d['id'][:8]}…)" for d in docs]
         doc_id_map = {f"{d['filename']} ({d['id'][:8]}…)": d["id"] for d in docs}
@@ -101,7 +111,7 @@ def main():
     with tab3:
         st.subheader("Semantic Search")
         st.caption(
-            "**vector**: semantic similarity · **graph**: entities & relationships · **raptor**: overview/summary · **hybrid**: vector + graph fused"
+            "Uses the retrieval mode selected in the sidebar. See **What each mode does** in the sidebar for details."
         )
         query = st.text_input("Enter query (English or Arabic)", key="search_query")
         if query:

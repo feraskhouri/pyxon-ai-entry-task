@@ -27,7 +27,11 @@ def generate_answer(
 
 Question: {query}
 
-Answer based on the context above. If the context does not contain relevant information, say so."""
+Answer based only on the context above.
+- If the context does not contain relevant information, say so.
+- If the question is not related to the context, say so.
+- If the question is related to the context, answer using the context; you may draw conclusions from it.
+- If you cannot answer from the context, state that you are unable to answer rather than guessing. """
 
     try:
         response = client.chat.completions.create(
